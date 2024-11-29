@@ -19,8 +19,10 @@ import java.util.stream.Collectors;
 public class QueryBuilder {
     public static final String ONE_OF_SELECTION_1 = "1 of selection_*";
     public static final String ONE_OF_SELECTION_2 = "1 of selection*";
+    public static final String ONE_OF_SELECTION1 = "1 of selection1*";
     public static final String ALL_OF_SELECTION_1 = "all of selection_*";
     public static final String ALL_OF_SELECTION_2 = "all of selection*";
+    public static final String ALL_OF_SELECTION1 = "all of selection1*";
     public static String yaml = "";
 
     public static SigmaRuleParser ruleParser;
@@ -49,8 +51,11 @@ public class QueryBuilder {
             recursiveInspectConditionNames(sigmaCondition, detectionNamesInConditionLine);
         }
 
+        System.out.println(condition);
+
         if (condition.equals(ONE_OF_SELECTION_1) || condition.equals(ALL_OF_SELECTION_1) ||
-                condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2)) {
+                condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2) ||
+        condition.contains(ONE_OF_SELECTION1) || condition.contains(ALL_OF_SELECTION1)) {
             detectionNamesInConditionLine = List.copyOf(detectionsManager.getAllDetections().keySet());
             condition = getConditionLine(condition, detectionNamesInConditionLine);
         }

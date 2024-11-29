@@ -83,7 +83,6 @@ public class SigmaManager {
     public SigmaDto getSigmaDto(String path) throws IOException {
         String body = reader.readFile(path);
         String name = reader.getRuleName(body);
-        System.out.println(body);
         String query;
         try {
             query = reader.getQueryString(path);
@@ -91,7 +90,7 @@ public class SigmaManager {
         } catch (Exception e) {
             query = QueryHelper.getQueryFromPost(body);
         }
-        SigmaDto dto = new SigmaDto(name, body, query);
+        SigmaDto dto = new SigmaDto(name, body, getQueryFormat(query));
         return dto;
     }
 
