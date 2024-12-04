@@ -81,21 +81,27 @@ public class SigmaManager {
     }
     
     public SigmaDto getSigmaDto(String path) throws IOException {
+
         String body = reader.readFile(path);
-        String name = reader.getRuleName(body);
+        Map<String, String> sigmaFields = reader.getSigmaFields(body);
+        String name = sigmaFields.get("title");
+        String description = sigmaFields.get("description");
+        int priority = Integer.parseInt(sigmaFields.get("level"));
         String query;
         try {
             query = reader.getQueryString(path);
-//            throw new IOException();
         } catch (Exception e) {
             query = QueryHelper.getQueryFromPost(body);
+            priority = 3;
         }
+//        System.out.println(priority);
         SigmaDto dto = new SigmaDto(name, body, getQueryFormat(query));
+        System.out.println(dto.getQuery());
         return dto;
     }
 
-    public List<String> getSigmaDtoForTest() throws IOException {
-        Map<SigmaDto, String> allSigmaDto = new HashMap<>();
+    public Map<String, String> getSigmaDtoForTest() throws IOException {
+        Map<String, String> allSigmaQuery = new HashMap<>();
         List<String> paths = reader.getAllPaths();
         Iterator<String> iterator = paths.iterator();
         while (iterator.hasNext()) {
@@ -104,81 +110,11 @@ public class SigmaManager {
             if (!sigmaPath.startsWith("rules") || !sigmaPath.endsWith(".yml") || sigmaPath.contains("..")) {
                 continue;
             }
-            allSigmaDto.put(getSigmaDto(sigmaPath), reader.getRuleLevel(sigmaPath));
+            SigmaDto currentSigma = getSigmaDto(sigmaPath);
+            allSigmaQuery.put(currentSigma.getName(), currentSigma.getQuery());
         }
-        return getJsonFromSigmaDto(allSigmaDto);
-    }
-
-    public List<String> getJsonFromSigmaDto(Map<SigmaDto, String> allSigmaDto) throws IOException {
-        List<String> jsonResponseList = new ArrayList<>();
-        for (SigmaDto sigmaDto : allSigmaDto.keySet()) {
-            String currentJson = "{" +
-                    "\"title\":\"%s\"," +
-                    "\"description\":\"\"," +
-                    "\"priority\":\"%s\"," +
-                    "\"config\":" +
-                        "{\"query\":\"%s\"," +
-                        "\"query_parameters\":[]," +
-                        "\"streams\":[]," +
-                        "\"stream_categories\":[]," +
-                        "\"filters\":[]," +
-                        "\"search_within_ms\":\"300000\"," +
-                        "\"execute_every_ms\":\"300000\"," +
-                        "\"event_limit\":\"100\"," +
-                        "\"use_cron_scheduling\":\"false\"," +
-                        "\"group_by\":[]," +
-                        "\"series\":[]," +
-                        "\"conditions\":{}," +
-                        "\"type\":\"sigma-v1\"}," +
-                    "\"field_spec\":{}," +
-                    "\"key_spec\":[]," +
-                    "\"notification_settings\":" +
-                        "{\"grace_period_ms\":\"300000\"," +
-                        "\"backlog_size\":\"null\"}," +
-                    "\"notifications\":[]," +
-                    "\"alert\":\"false\"" +
-        "}";
-            String query = getQueryFormat(sigmaDto.getQuery());
-//            query = Base64.getEncoder().encodeToString(query.getBytes(Charset.defaultCharset()));
-            String jsonBody = String.format(currentJson, sigmaDto.getName(), allSigmaDto.get(sigmaDto), query);
-
-            jsonResponseList.add(jsonBody);
-        }
-        List<String> result = new ArrayList<>();
-        String oneRule = jsonResponseList.get(1988);
-        System.out.println(oneRule);
-        String body = requestToCreate(oneRule);
-        result.add(body);
-        return result;
-    }
-
-    public static String requestToCreate(String jsonBody) {
-        String uriString = "http://10.200.0.182:9000/api/events/definitions?schedule=true";
-
-        HttpClient httpClient = HttpClient.newHttpClient();
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(uriString))
-                    .header("Content-Type", "Application/Json")
-                    .header("Cookie", "27d7a78a-cd97-4af1-9eef-eb2145e62093")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .build();
-
-            try{
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                System.out.println(response);
-                return response.toString();
-            }
-            catch (IOException e) {
-                return "IOException has been thrown while requesting secondary sigma parsing resource";
-            }
-            catch (InterruptedException e) {
-                return "InterruptedException has been thrown while requesting secondary sigma parsing resource";
-            }
-        }
-        catch (URISyntaxException e){
-            return "Impossible error (or sigmaConvert endpoint has been changed...)";
-        }
+        allSigmaQuery.keySet().stream().forEach(t -> System.out.println(allSigmaQuery.get(t)));
+        return allSigmaQuery;
     }
 
     public String getQueryFormat(String value) throws IOException {
@@ -189,7 +125,7 @@ public class SigmaManager {
         value = value.replace("not", "NOT");
         value = value.replaceAll("\\\\\\\\", "\\\\");
         value = value.replaceAll("\\\\ ", " ");
-        value = value.replaceAll("\\\\", "\\\\\\\\");
+//        value = value.replaceAll("\\\\", "\\\\\\\\");
         return value;
     }
 }

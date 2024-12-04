@@ -51,7 +51,7 @@ public class QueryBuilder {
             recursiveInspectConditionNames(sigmaCondition, detectionNamesInConditionLine);
         }
 
-        System.out.println(condition);
+//        System.out.println(condition);
 
         if (condition.equals(ONE_OF_SELECTION_1) || condition.equals(ALL_OF_SELECTION_1) ||
                 condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2) ||

@@ -69,33 +69,6 @@ public class SigmaReader {
         } catch (InvalidSigmaRuleException e) {
             throw new RuntimeException(e);
         }
-
-    }
-
-    public String getRuleName(String body) {
-        String name;
-        try (BufferedReader bf = new BufferedReader(new StringReader(body))){
-            name = bf.readLine().replaceAll("title: ", "");
-        } catch (IOException e) {
-            return "Unknown rule name";
-        }
-        return name;
-    }
-
-    public String getRuleLevel(String path) {
-        String level;
-        try (BufferedReader bf = new BufferedReader(new StringReader(readFile(path)))){
-            level = bf.lines().filter(l -> l.startsWith("level: ")).findFirst().get().replace("level: ", "");
-        } catch (IOException e) {
-            return "Unknown rule name";
-        }
-        switch (level) {
-            case "low": level = "1"; break;
-            case "medium": level = "2"; break;
-            case "high": level = "3"; break;
-            case "critical": level = "4"; break;
-        }
-        return level;
     }
 
     public List<String> getAllPaths() {
@@ -109,4 +82,23 @@ public class SigmaReader {
         return filePaths;
     }
 
+    public Map<String, String> getSigmaFields(String body) {
+        Map<String, String> sigmaFields = new HashMap<>();
+        try (BufferedReader bf = new BufferedReader(new StringReader(body))){
+            sigmaFields.put("title", bf.lines().filter(l -> l.startsWith("title: ")).findFirst().get().replace("title: ", ""));
+            sigmaFields.put("description", bf.lines().filter(l -> l.startsWith("description: ")).findFirst().get().replace("description: ", ""));
+            String levelFromSigma = bf.lines().filter(l -> l.startsWith("level: ")).findFirst().get().replace("level: ", "");
+            int level = 1;
+            switch (levelFromSigma) {
+                case "low": level = 1; break;
+                case "medium": level = 2; break;
+                case "high": level = 3; break;
+                case "critical": level = 3; break;
+            }
+            sigmaFields.put("level", Integer.toString(level));
+        } catch (IOException e) {
+            return new HashMap<>();
+        }
+        return sigmaFields;
+    }
 }

@@ -218,15 +218,12 @@ public class DetectionParser {
         for(int i = 0; i < value.length(); ++i) {
             final char c = value.charAt(i);
             switch(c) {
-//                case '*': out.append(".*"); break;
                 case '?': out.append('.'); break;
-//                case '.': out.append("\\."); break;
-                case ':': out.append(Matcher.quoteReplacement("\\") + ":"); break;
-                case '\\': out.append("\\\\"); break;
-                case '$': out.append("\\\\\\$"); break;
-                case '%': out.append("\\\\\\%"); break;
-                case '-': out.append(Matcher.quoteReplacement("\\") + "-"); break;
-                case '/': out.append(Matcher.quoteReplacement("\\") + "/"); break;
+                case ':': out.append("\\\\:"); break;
+                case '$': out.append("\\\\$"); break;
+                case '%': out.append("\\\\%"); break;
+                case '-': out.append("\\\\-"); break;
+                case '/': out.append("\\\\/"); break;
                 default: out.append(c);
             }
         }

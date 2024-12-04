@@ -47,10 +47,9 @@ public class SigmaConverterController {
             dto = manager.getSigmaDto(sigmaPath);
         }
         catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            SigmaDto sigmaDto = new SigmaDto(e.getMessage(), e.toString(), e.getLocalizedMessage());
+            return new ResponseEntity<>(sigmaDto, null, HttpStatus.BAD_REQUEST);
         }
-//        String json = objectMapper.writeValueAsString(dto).replace("\\\\", "\\");
-
         return new ResponseEntity<>(dto, null, HttpStatus.OK);
     }
 
