@@ -86,7 +86,6 @@ public class SigmaReader {
         Map<String, String> sigmaFields = new HashMap<>();
         try (BufferedReader bf = new BufferedReader(new StringReader(body))){
             sigmaFields.put("title", bf.lines().filter(l -> l.startsWith("title: ")).findFirst().get().replace("title: ", ""));
-            sigmaFields.put("description", bf.lines().filter(l -> l.startsWith("description: ")).findFirst().get().replace("description: ", ""));
             String levelFromSigma = bf.lines().filter(l -> l.startsWith("level: ")).findFirst().get().replace("level: ", "");
             int level = 1;
             switch (levelFromSigma) {
@@ -96,9 +95,31 @@ public class SigmaReader {
                 case "critical": level = 3; break;
             }
             sigmaFields.put("level", Integer.toString(level));
+            sigmaFields.put("description", getDescription(body));
         } catch (IOException e) {
-            return new HashMap<>();
+            throw new IllegalArgumentException(e.getMessage());
         }
         return sigmaFields;
+    }
+
+    private static String getDescription(String body) {
+        Iterator<String> iterator = body.lines().iterator();
+        StringBuilder description = new StringBuilder();
+        while (iterator.hasNext()) {
+            String line = iterator.next();
+            if (line.startsWith("description: ")) {
+                if (line.equals("description: |")) {
+                    String nextLine = iterator.next();
+                    while (nextLine.startsWith(" ")) {
+                        description.append(nextLine.trim());
+                        description.append(" ");
+                        nextLine = iterator.next();
+                    }
+                } else {
+                    description.append(line.replace("description: ", ""));
+                }
+            }
+        }
+        return description.toString().trim();
     }
 }
