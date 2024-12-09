@@ -149,8 +149,8 @@ public class QueryBuilder {
             value = value.replaceAll(":\\[]", "");
             value = value.replaceAll(" AND ", " OR ");
         }
-        if (value.contains("[")) value = value.replaceAll("\\[", "");
-        if (value.contains("]")) value = value.replaceAll("]", "");
+        if (value.contains(":[")) value = value.replaceAll(":\\[", ":(");
+        if (value.contains("*]")) value = value.replaceAll("\\*]", "*)");
         if (value.endsWith("\"")) value = new StringBuilder(value).delete(value.length() - 1, value.length()).toString();
         value = value.replaceAll("\\\\\\.\\*", "\\\\\\\\.*");
         return value;

@@ -25,6 +25,8 @@ import tech.api_factory.sigma.parser.models.SigmaDetections;
 public class DetectionParser {
     final static Logger logger = LogManager.getLogger(DetectionParser.class);
 
+    static final String ESCAPED_CHARACTERS = "+ - && || / ! = { } [ ] ^ \" ~ * ? : \\";
+    static final String ESCAPE = "\\\\";
     static final String OPEN_BRACKET = "{";
     static final String CLOSE_BRACKET = "}";
     static final String OPEN_ARRAY = "[";
@@ -53,8 +55,9 @@ public class DetectionParser {
                 List<String> names = (List<String>) searchIdentifiers;
                 List<SigmaDetection> sigmaDetectionList = new ArrayList<>();
                 for (String s : names) {
+                    StringBuilder buildKeyWord = new StringBuilder();
                     SigmaDetection sigmaDetection = new SigmaDetection();
-                    sigmaDetection.setName(s);
+                    sigmaDetection.setName( buildKeyWord.append("*").append(s).append("*").toString());
                     sigmaDetectionList.add(sigmaDetection);
                 }
                SigmaDetections sigmaDetections = new SigmaDetections();
@@ -217,16 +220,13 @@ public class DetectionParser {
         StringBuilder out = new StringBuilder();
         for(int i = 0; i < value.length(); ++i) {
             final char c = value.charAt(i);
-            switch(c) {
-                case '?': out.append('.'); break;
-                case ':': out.append("\\\\:"); break;
-                case '$': out.append("\\\\$"); break;
-                case '%': out.append("\\\\%"); break;
-                case '-': out.append("\\\\-"); break;
-                case '/': out.append("\\\\/"); break;
-                case '\\': out.append("\\\\\\"); break;
-                default: out.append(c);
+            if (ESCAPED_CHARACTERS.contains(String.valueOf(c))) {
+                System.out.println(c);
+                out.append(ESCAPE + c);
+                System.out.println(out);
+                continue;
             }
+            out.append(c);
         }
         return out.toString();
     }

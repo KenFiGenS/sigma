@@ -83,21 +83,51 @@ public class SigmaReader {
     }
 
     public Map<String, String> getSigmaFields(String body) {
-        Map<String, String> sigmaFields = new HashMap<>();
-        try (BufferedReader bf = new BufferedReader(new StringReader(body))){
+        Map<String, String> sigmaFields = new HashMap();
+        try (BufferedReader bf = new BufferedReader(new StringReader(body))) {
+
+            String line = "";
+            StringBuilder result = new StringBuilder();
+            boolean isDescription = false;
+
             sigmaFields.put("title", bf.lines().filter(l -> l.startsWith("title: ")).findFirst().get().replace("title: ", ""));
+
+            while (( line = bf.readLine()) != null) {
+                if(line.startsWith("description: ")){
+                    isDescription = true;
+                    result.append(line.replace("description: ", ""));
+                }
+                else if(line.startsWith("    ") && isDescription){
+                    result.append(line.replace("    ", " "));
+                }
+                else if(isDescription) {
+                    break;
+                }
+            }
+
+            sigmaFields.put("description", result.toString());
+
             String levelFromSigma = bf.lines().filter(l -> l.startsWith("level: ")).findFirst().get().replace("level: ", "");
-            int level = 1;
+            int level;
+            long scheduleTime;
             switch (levelFromSigma) {
-                case "low": level = 1; break;
-                case "medium": level = 2; break;
-                case "high": level = 3; break;
-                case "critical": level = 3; break;
+                case "medium" -> {
+                    level = 2;
+                    scheduleTime = 600000L;
+                }
+                case "high", "critical" -> {
+                    level = 3;
+                    scheduleTime = 300000L;
+                }
+                default -> {
+                    level = 1;
+                    scheduleTime = 900000L;
+                }
             }
             sigmaFields.put("level", Integer.toString(level));
-            sigmaFields.put("description", getDescription(body));
+            sigmaFields.put("scheduleTime", Long.toString(scheduleTime));
         } catch (IOException e) {
-            throw new IllegalArgumentException(e.getMessage());
+            return new HashMap();
         }
         return sigmaFields;
     }

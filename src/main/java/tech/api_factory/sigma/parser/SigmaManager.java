@@ -94,8 +94,8 @@ public class SigmaManager {
         try {
             query = reader.getQueryString(path);
         } catch (Exception e) {
+            System.out.println("Ошибка парсинга! Отправлен POST запрос");
             query = QueryHelper.getQueryFromPost(body);
-            priority = 3;
         }
 //        System.out.println(description);
         SigmaDto dto = new SigmaDto(name, body, getQueryFormat(query));
@@ -131,7 +131,6 @@ public class SigmaManager {
         value = value.replaceAll("1 of ", "");
         value = value.replaceAll("all of ", "");
         value = value.replace("not", "NOT");
-//        value = value.replaceAll("\\\\\\\\", "\\\\");
         value = value.replaceAll("\\\\ ", " ");
         value = value.replaceAll("::", "\\\\:\\\\:");
         return value;
