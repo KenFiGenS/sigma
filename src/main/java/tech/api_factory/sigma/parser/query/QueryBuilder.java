@@ -143,14 +143,18 @@ public class QueryBuilder {
     }
 
     public String valueFormat(String value) {
+
         if (value.endsWith(" AND ")) value = new StringBuilder(value).delete(value.length() - 5, value.length()).toString();
         if (value.endsWith(" OR ")) value = new StringBuilder(value).delete(value.length() - 4, value.length()).toString();
         if (value.contains(":[]")) {
             value = value.replaceAll(":\\[]", "");
             value = value.replaceAll(" AND ", " OR ");
         }
-        if (value.contains(":[")) value = value.replaceAll(":\\[", ":(");
-        if (value.contains("*]")) value = value.replaceAll("\\*]", "*)");
+        if (value.endsWith("]")) {
+            int index = value.indexOf(":");
+            value = new StringBuilder().delete(index + 2, index + 3).toString();
+            value = new StringBuilder().delete(value.length() - 1, value.length()).toString();
+        }
         if (value.endsWith("\"")) value = new StringBuilder(value).delete(value.length() - 1, value.length()).toString();
         value = value.replaceAll("\\\\\\.\\*", "\\\\\\\\.*");
         return value;

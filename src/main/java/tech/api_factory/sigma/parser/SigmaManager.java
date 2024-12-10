@@ -94,7 +94,7 @@ public class SigmaManager {
         try {
             query = reader.getQueryString(path);
         } catch (Exception e) {
-            System.out.println("Ошибка парсинга! Отправлен POST запрос");
+            System.out.println("Ошибка парсинга!" + e.getMessage() + " Отправлен POST запрос");
             query = QueryHelper.getQueryFromPost(body);
         }
 //        System.out.println(description);
@@ -127,10 +127,12 @@ public class SigmaManager {
 
     public String getQueryFormat(String value) throws IOException {
         value = value.replaceAll("\\*", ".*");
+        value = value.replaceAll("\\.\\.\\*", ".*");
         value = value.replaceAll("\\)" + "\\.\\*", ")");
         value = value.replaceAll("1 of ", "");
         value = value.replaceAll("all of ", "");
         value = value.replace("not", "NOT");
+        value = value.replaceAll("\\\\\\\\", "\\\\");
         value = value.replaceAll("\\\\ ", " ");
         value = value.replaceAll("::", "\\\\:\\\\:");
         return value;

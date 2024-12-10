@@ -221,9 +221,7 @@ public class DetectionParser {
         for(int i = 0; i < value.length(); ++i) {
             final char c = value.charAt(i);
             if (ESCAPED_CHARACTERS.contains(String.valueOf(c))) {
-                System.out.println(c);
-                out.append(ESCAPE + c);
-                System.out.println(out);
+                out.append(ESCAPE).append(c);
                 continue;
             }
             out.append(c);
