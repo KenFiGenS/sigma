@@ -25,7 +25,7 @@ import tech.api_factory.sigma.parser.models.SigmaDetections;
 public class DetectionParser {
     final static Logger logger = LogManager.getLogger(DetectionParser.class);
 
-    static final String ESCAPED_CHARACTERS = "+ - && || / ! = { } [ ] ^ \" ~ * ? : \\";
+    static final String ESCAPED_CHARACTERS = "+ - ( ) && || < > / ! = { } [ ] ^ \" ~ * ? : \\";
     static final String ESCAPE = "\\\\";
     static final String OPEN_BRACKET = "{";
     static final String CLOSE_BRACKET = "}";
@@ -57,7 +57,7 @@ public class DetectionParser {
                 for (String s : names) {
                     StringBuilder buildKeyWord = new StringBuilder();
                     SigmaDetection sigmaDetection = new SigmaDetection();
-                    sigmaDetection.setName( buildKeyWord.append("*").append(s).append("*").toString());
+                    sigmaDetection.setName(buildKeyWord.append("*").append(s).append("*").toString());
                     sigmaDetectionList.add(sigmaDetection);
                 }
                SigmaDetections sigmaDetections = new SigmaDetections();

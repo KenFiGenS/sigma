@@ -35,6 +35,7 @@ public class QueryBuilder {
         try {
             sigmaRule = ruleParser.parseRule(yamlSource);
         } catch (RuntimeException e) {
+            System.out.println("Ошибка парсинга в Java-объект! \n " + e.getMessage() + "\n" + e + " Отправлен POST запрос");
             return this.getOneQueryFromSigmaRuleWithSigConverter(yaml);
         }
 
@@ -55,11 +56,13 @@ public class QueryBuilder {
 
         if (condition.equals(ONE_OF_SELECTION_1) || condition.equals(ALL_OF_SELECTION_1) ||
                 condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2) ||
-        condition.contains(ONE_OF_SELECTION1) || condition.contains(ALL_OF_SELECTION1)) {
+                condition.contains(ONE_OF_SELECTION1) || condition.contains(ALL_OF_SELECTION1)) {
+            System.out.println(condition);
             detectionNamesInConditionLine = List.copyOf(detectionsManager.getAllDetections().keySet());
             condition = getConditionLine(condition, detectionNamesInConditionLine);
         }
-
+        detectionNamesInConditionLine.forEach(s -> System.out.println(s));
+        System.out.println(condition);
         return getQueryFromSimpleSigmaRule(condition, detectionNamesInConditionLine, detectionsManager);
     }
 
@@ -67,18 +70,23 @@ public class QueryBuilder {
         final String defaultResult = result;
         Iterator<String> detectionNamesIterator = detectionNamesInConditionLine.iterator();
         String valueResult = "";
+        String selectionValue = "";
         while (detectionNamesIterator.hasNext()) {
             String currentDetectionName = detectionNamesIterator.next();
             List<SigmaDetection> detections;
             try {
                 detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
             } catch (NullPointerException e) {
+                System.out.println("=================================================================================>Go to the hardRuleParser");
                 result = defaultResult;
                 return getHardConditionLine(result, detectionNamesInConditionLine, detectionsManager);
             }
             StringBuilder keyValueByDetectionName = new StringBuilder();
             for (SigmaDetection d : detections) {
                 valueResult = d.getValues().toString();
+                System.out.println(currentDetectionName);
+                System.out.println(d.getName());
+                System.out.println(valueResult);
                 if (d.getMatchAll()) {
                     valueResult = valueResult.replaceAll(", ", " AND " + d.getName() + ":");
                 } else {
@@ -89,21 +97,28 @@ public class QueryBuilder {
                 } else {
                     keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" AND ");
                 }
-                valueResult = valueFormat(keyValueByDetectionName.toString());
+            }
+            valueResult = valueFormat(keyValueByDetectionName.toString());
+            System.out.println(valueResult);
+            if (currentDetectionName.equals("selection")) {
+                selectionValue = valueResult;
+                continue;
             }
             result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
+            System.out.println(result);
         }
+        if (result.contains("selection")) result = result.replaceAll("selection", "(" + selectionValue + ")");
         return result;
     }
 
     public String getHardConditionLine(String result, List<String> conditionNames, DetectionsManager detectionsManager) {
-        List<String> detectionName = detectionsManager.getAllDetections().keySet().stream().collect(Collectors.toList());
+        List<String> detectionName = detectionsManager.getAllDetections().keySet().stream().toList();
         Map<String, String> keyValue = new HashMap<>();
-        boolean isAndConditions = false;
+        boolean isAndConditions;
         for (String currentDetectionName : detectionName) {
             for (String conditionName : conditionNames) {
-                if (conditionName.equals("all")) isAndConditions = true;
-                if (currentDetectionName.contains(conditionName.replace("_*", "")) & !conditionName.equals("of")) {
+                isAndConditions = conditionName.equals("all");
+                if (currentDetectionName.contains(conditionName.replace("_*", "")) && !conditionName.equals("of") && !conditionName.equals("1")) {
                     StringBuilder keyValueByDetectionName = new StringBuilder();
                     List<SigmaDetection> detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
                     for (SigmaDetection d : detections) {
@@ -113,50 +128,63 @@ public class QueryBuilder {
                         } else {
                             currentValue = currentValue.replaceAll(", ", " AND ");
                         }
-                        if (isListForHardRules(yaml, currentDetectionName)) {
+                        if (currentDetectionName.equals("selection")) {
+                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
+                        } else if (isListForHardRules(yaml, currentDetectionName)) {
                             if (d.getMatchAll()) {
                                 keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                             } else {
-                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" OR ");;
+                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" OR ");
                             }
+//                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         } else {
                             keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         }
                     }
                     keyValueByDetectionName = new StringBuilder(valueFormat(keyValueByDetectionName.toString()));
-                    if (!keyValue.keySet().contains(conditionName)) {
+                    if (!keyValue.containsKey(conditionName)) {
                         keyValue.put(conditionName, keyValueByDetectionName.toString());
-                    } else if (currentDetectionName.contains("selection") && isAndConditions) {
-                        keyValueByDetectionName.append(" AND " + keyValue.get(conditionName));
-                        keyValue.put(conditionName, keyValueByDetectionName.toString());
+                    } else if (currentDetectionName.contains("selection") || isAndConditions) {
+                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
+                        builder.append(" AND ").append(keyValueByDetectionName);
+                        keyValue.put(conditionName, builder.toString());
                     } else {
-                        keyValueByDetectionName.append(" OR " + keyValue.get(conditionName));
-                        keyValue.put(conditionName, keyValueByDetectionName.toString());
+                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
+                        builder.append(" OR ").append(keyValueByDetectionName);
+                        keyValue.put(conditionName, builder.toString());
                     }
                 }
             }
         }
         for (String k : keyValue.keySet()) {
-            result = result.replaceAll(k, "(" + keyValue.get(k) + ")");
+            String value = keyValue.get(k);
+            System.out.println(k);
+            System.out.println(value);
+            result = result.replaceAll(k, "(" + value + ")");
+            System.out.println(result);
         }
         return result;
     }
 
     public String valueFormat(String value) {
-
-        if (value.endsWith(" AND ")) value = new StringBuilder(value).delete(value.length() - 5, value.length()).toString();
-        if (value.endsWith(" OR ")) value = new StringBuilder(value).delete(value.length() - 4, value.length()).toString();
-        if (value.contains(":[]")) {
-            value = value.replaceAll(":\\[]", "");
-            value = value.replaceAll(" AND ", " OR ");
+        StringBuilder queryBuilder = new StringBuilder();
+        String[] splitValues = value.split(" ");
+        for (int i = 0; i < splitValues.length; i++) {
+            String currentSplitValue = splitValues[i];
+            StringBuilder currentValueBuilder = new StringBuilder(currentSplitValue);
+            if (currentSplitValue.contains(":[")) {
+                currentValueBuilder = new StringBuilder(currentSplitValue.replaceFirst("\\[", ""));
+            }
+            if (currentSplitValue.endsWith("]")) {
+                currentValueBuilder.delete(currentValueBuilder.length() - 1, currentValueBuilder.length());
+            }
+            if ((currentSplitValue.equals("AND") || currentSplitValue.equals("OR")) && i == splitValues.length - 1) {
+                continue;
+            }
+            queryBuilder.append(currentValueBuilder).append(" ");
         }
-        if (value.endsWith("]")) {
-            int index = value.indexOf(":");
-            value = new StringBuilder().delete(index + 2, index + 3).toString();
-            value = new StringBuilder().delete(value.length() - 1, value.length()).toString();
-        }
-        if (value.endsWith("\"")) value = new StringBuilder(value).delete(value.length() - 1, value.length()).toString();
-        value = value.replaceAll("\\\\\\.\\*", "\\\\\\\\.*");
+        value = queryBuilder.toString().trim();
+        if (value.contains("$")) value = value.replace("$", "\\$");
         return value;
     }
 
@@ -168,7 +196,7 @@ public class QueryBuilder {
                     conditionResult
                             .append(detectionsNames.get(i))
                             .append(" AND ");
-                } else if (condition.contains("and")){
+                } else if (condition.contains("1")){
                     conditionResult
                             .append(detectionsNames.get(i))
                             .append(" OR ");
@@ -220,7 +248,7 @@ public class QueryBuilder {
 
     public String getOneQueryFromSigmaRuleWithSigConverter(String yaml) throws IOException, InterruptedException, URISyntaxException {
         String response = QueryHelper.getQueryFromPost(yaml);
-        return response.replaceAll("\\*",".*");
+        return response;
     }
 
     private boolean isList(String yaml, String detectionName) {
