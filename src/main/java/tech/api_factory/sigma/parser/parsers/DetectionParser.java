@@ -27,6 +27,7 @@ public class DetectionParser {
 
     static final String ESCAPED_CHARACTERS = "+ - ( ) && || < > / ! = { } [ ] ^ \" ~ * ? : \\";
     static final String ESCAPE = "\\\\";
+    static final String UNICODE_CONSTANT = "\\u";
     static final String OPEN_BRACKET = "{";
     static final String CLOSE_BRACKET = "}";
     static final String OPEN_ARRAY = "[";
@@ -219,12 +220,19 @@ public class DetectionParser {
     private String sigmaWildcardToRegex(String value) {
         StringBuilder out = new StringBuilder();
         for(int i = 0; i < value.length(); ++i) {
-            final char c = value.charAt(i);
-            if (ESCAPED_CHARACTERS.contains(String.valueOf(c))) {
-                out.append(ESCAPE).append(c);
+            final char currentChar = value.charAt(i);
+            final char nextChar = (i + 1 < value.length()) ? value.charAt(i + 1) : 0;
+            if (ESCAPED_CHARACTERS.contains(String.valueOf(currentChar))) {
+                StringBuilder currentAndNextChar = new StringBuilder();
+                currentAndNextChar.append(currentChar).append(nextChar);
+                if (nextChar != 0 && currentAndNextChar.toString().equals(UNICODE_CONSTANT)) {
+                    out.append(ESCAPE).append(ESCAPE).append(currentChar);
+                    continue;
+                }
+                out.append(ESCAPE).append(currentChar);
                 continue;
             }
-            out.append(c);
+            out.append(currentChar);
         }
         return out.toString();
     }
