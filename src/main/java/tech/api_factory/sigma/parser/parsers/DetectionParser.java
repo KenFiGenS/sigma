@@ -1,11 +1,7 @@
 package tech.api_factory.sigma.parser.parsers;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -25,9 +21,9 @@ import tech.api_factory.sigma.parser.models.SigmaDetections;
 public class DetectionParser {
     final static Logger logger = LogManager.getLogger(DetectionParser.class);
 
-    static final String ESCAPED_CHARACTERS = "+ - ( ) && || < > / ! = { } [ ] ^ \" ~ * ? : \\";
+    static final String ESCAPED_CHARACTERS = "+ -  ( ) && || < > / ! = { } [ ] ^ \" ~ * ? : \\";
     static final String ESCAPE = "\\\\";
-    static final String UNICODE_CONSTANT = "\\u";
+    static final int SHIFT_COUNT = 3; // 3 смещения, потому что так заложено в правиле с модификатором Base64offSet
     static final String OPEN_BRACKET = "{";
     static final String CLOSE_BRACKET = "}";
     static final String OPEN_ARRAY = "[";
@@ -162,10 +158,13 @@ public class DetectionParser {
         }
     }
 
-
     private void parseValue(SigmaDetection detectionModel, String value) throws InvalidSigmaRuleException {
         if (detectionModel.getModifiers().size() > 0) {
             for (ModifierType modifier : detectionModel.getModifiers()) {
+                if (modifier == ModifierType.BASE64) {
+                    detectionModel.addValue(buildStringWithModifier(value, modifier));
+                    break;
+                }
                 detectionModel.addValue(buildStringWithModifier(value, modifier));
             }
         }
@@ -176,11 +175,12 @@ public class DetectionParser {
 
     // TODO We need to handle escaping in sigma
     private String buildStringWithModifier(String value, ModifierType modifier) throws InvalidSigmaRuleException {
-
         // Sigma spec isn't clear on what to do with wildcard characters when they are in values with a "transformation"
         // which we are calling operator
         if (modifier != null) {
             switch (modifier) {
+                case BASE64:
+                    return getEncodedValue(value);
                 case STARTS_WITH:
                 case BEGINS_WITH:
                     return sigmaWildcardToRegex(value) + "*";
@@ -200,6 +200,49 @@ public class DetectionParser {
 
         return sigmaWildcardToRegex(value);
     }
+
+    private String getEncodedValue(String value) {
+        List<String> encodedValues = getValuesWithShiftAndEncoded(value);
+        StringBuilder encodedValueBuilder = new StringBuilder();
+        for (int i = 0; i < SHIFT_COUNT; i++) {
+            if (i + 1 != SHIFT_COUNT) {
+                encodedValueBuilder.append("*").append(encodedValues.get(i)).append("*").append(" OR ");
+            } else {
+                encodedValueBuilder.append("*").append(encodedValues.get(i)).append("*");
+            }
+        }
+        System.out.println(encodedValueBuilder);
+        return encodedValueBuilder.toString();
+    }
+
+    private List<String> getValuesWithShiftAndEncoded(String value) {
+        List<String> valuesWithShiftAndEncoded = new ArrayList<>();
+
+        for (int i = 0; i < SHIFT_COUNT; i++) {
+            String encodedValue;
+            String valueWithShift;
+            StringBuilder sb = new StringBuilder();
+            switch (i) {
+                case 0:
+                    valueWithShift = sb.append(value).toString();
+                    encodedValue = Base64.getEncoder().encodeToString(valueWithShift.getBytes(StandardCharsets.UTF_8));
+                    valuesWithShiftAndEncoded.add(encodedValue.substring(0, encodedValue.length() - 3));
+                    break;
+                case 1:
+                    valueWithShift = sb.append("=").append(value).toString();
+                    encodedValue = Base64.getEncoder().encodeToString(valueWithShift.getBytes(StandardCharsets.UTF_8));
+                    valuesWithShiftAndEncoded.add(encodedValue.substring(2, encodedValue.length() - 2));
+                    break;
+                case 2:
+                    valueWithShift = sb.append("=").append("=").append(value).toString();
+                    encodedValue = Base64.getEncoder().encodeToString(valueWithShift.getBytes(StandardCharsets.UTF_8));
+                    valuesWithShiftAndEncoded.add(encodedValue.substring(3, encodedValue.length()));
+                    break;
+            }
+        }
+        return valuesWithShiftAndEncoded;
+    }
+
 
     private boolean validRegex(String regex) {
         try {
@@ -221,14 +264,14 @@ public class DetectionParser {
         StringBuilder out = new StringBuilder();
         for(int i = 0; i < value.length(); ++i) {
             final char currentChar = value.charAt(i);
-            final char nextChar = (i + 1 < value.length()) ? value.charAt(i + 1) : 0;
+//            final char nextChar = (i + 1 < value.length()) ? value.charAt(i + 1) : 0;
             if (ESCAPED_CHARACTERS.contains(String.valueOf(currentChar))) {
-                StringBuilder currentAndNextChar = new StringBuilder();
-                currentAndNextChar.append(currentChar).append(nextChar);
-                if (nextChar != 0 && currentAndNextChar.toString().equals(UNICODE_CONSTANT)) {
-                    out.append(ESCAPE).append(ESCAPE).append(currentChar);
-                    continue;
-                }
+//                StringBuilder currentAndNextChar = new StringBuilder();
+//                currentAndNextChar.append(currentChar).append(nextChar);
+//                if (nextChar != 0 && currentAndNextChar.toString().equals(UNICODE_CONSTANT)) {
+//                    out.append(ESCAPE).append(ESCAPE).append(currentChar);
+//                    continue;
+//                }
                 out.append(ESCAPE).append(currentChar);
                 continue;
             }

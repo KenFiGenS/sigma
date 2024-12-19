@@ -1,6 +1,7 @@
 package tech.api_factory.sigma.parser.models;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -15,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class DetectionsManager {
     final static Logger logger = LogManager.getLogger(DetectionsManager.class);
 
-    private Map<String, SigmaDetections> detections = new HashMap<>();
+    private Map<String, SigmaDetections> detections = new LinkedHashMap<>();
     private Long windowTimeMS = 0L;
 
     public DetectionsManager() { }

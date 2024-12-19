@@ -84,9 +84,6 @@ public class QueryBuilder {
             StringBuilder keyValueByDetectionName = new StringBuilder();
             for (SigmaDetection d : detections) {
                 valueResult = d.getValues().toString();
-                System.out.println(currentDetectionName);
-                System.out.println(d.getName());
-                System.out.println(valueResult);
                 if (d.getMatchAll()) {
                     valueResult = valueResult.replaceAll(", ", " AND " + d.getName() + ":");
                 } else {
@@ -99,13 +96,11 @@ public class QueryBuilder {
                 }
             }
             valueResult = valueFormat(keyValueByDetectionName.toString());
-            System.out.println(valueResult);
             if (currentDetectionName.equals("selection")) {
                 selectionValue = valueResult;
                 continue;
             }
             result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
-            System.out.println(result);
         }
         if (result.contains("selection")) result = result.replaceAll("selection", "(" + selectionValue + ")");
         return result;
@@ -131,10 +126,10 @@ public class QueryBuilder {
                         if (currentDetectionName.equals("selection")) {
                             keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         } else if (isListForHardRules(yaml, currentDetectionName)) {
-                            if (d.getMatchAll()) {
-                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
-                            } else {
+                            if (isList(yaml, currentDetectionName)) {
                                 keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" OR ");
+                            } else {
+                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                             }
 //                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         } else {
@@ -158,10 +153,7 @@ public class QueryBuilder {
         }
         for (String k : keyValue.keySet()) {
             String value = keyValue.get(k);
-            System.out.println(k);
-            System.out.println(value);
             result = result.replaceAll(k, "(" + value + ")");
-            System.out.println(result);
         }
         return result;
     }

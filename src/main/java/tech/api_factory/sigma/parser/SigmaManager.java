@@ -126,18 +126,28 @@ public class SigmaManager {
     }
 
     public String getQueryFormat(String value) throws IOException {
-        System.out.println(value);
-        value = value.replaceAll("\\*", ".*");
-        value = value.replaceAll("\\.\\*\\.\\*", "*.*");
-        value = value.replaceAll("\\)" + "\\.\\*", ")");
+        value = value.replaceAll("\\)" + "\\*",      ")");
         value = value.replaceAll("1 of ", "");
         value = value.replaceAll("all of ", "");
         value = value.replace("not", "NOT");
-//        value = value.replaceAll("\\\\\\\\", "\\\\");
+        value = value.replaceAll("\\\\", "\\\\\\\\");
+        value = value.replaceAll("=\\\\\\\\\\*", "=\\\\*");
         value = value.replaceAll("\\\\ ", " ");
+        value = value.replaceAll("\\\\-", "-");
+        value = value.replaceAll("\\\\/", "/");
+        value = value.replaceAll("\\\\\\[", "[");
+        value = value.replaceAll("\\\\]", "]");
+        value = value.replaceAll("\\\\=", "=");
+        value = value.replaceAll("\\\\\\|", "|");
+        value = value.replaceAll("\\\\!", "!");
+        value = value.replaceAll("\\\\:", ":");
+        value = value.replaceAll("\\\\\\(", "(");
+        value = value.replaceAll("\\\\\\)", ")");
+        value = value.replaceAll("\\\\>", ">");
+        value = value.replaceAll("\\\\<", "<");
         value = value.replaceAll("::", "\\\\:\\\\:");
-        value = value.replaceAll(" \\\\\\*\\.\\*", "\\\\ *.*");
-        System.out.println(value);
+        value = value.replaceAll("\\\\\\\\\\\\\\\\", "\\\\");
+        value = value.replaceAll("\\\\\\)", "\\\\)*");
         return value;
     }
 
