@@ -21,7 +21,7 @@ import tech.api_factory.sigma.parser.models.SigmaDetections;
 public class DetectionParser {
     final static Logger logger = LogManager.getLogger(DetectionParser.class);
 
-    static final String ESCAPED_CHARACTERS = "+ -  ( ) && || < > / ! = { } [ ] ^ \" ~ * ? : \\";
+    static final String ESCAPED_CHARACTERS = "+ - ( ) && || < > / ! = { } [ ] ^ \" ~ ? : \\";
     static final String ESCAPE = "\\\\";
     static final int SHIFT_COUNT = 3; // 3 смещения, потому что так заложено в правиле с модификатором Base64offSet
     static final String OPEN_BRACKET = "{";
@@ -264,14 +264,7 @@ public class DetectionParser {
         StringBuilder out = new StringBuilder();
         for(int i = 0; i < value.length(); ++i) {
             final char currentChar = value.charAt(i);
-//            final char nextChar = (i + 1 < value.length()) ? value.charAt(i + 1) : 0;
             if (ESCAPED_CHARACTERS.contains(String.valueOf(currentChar))) {
-//                StringBuilder currentAndNextChar = new StringBuilder();
-//                currentAndNextChar.append(currentChar).append(nextChar);
-//                if (nextChar != 0 && currentAndNextChar.toString().equals(UNICODE_CONSTANT)) {
-//                    out.append(ESCAPE).append(ESCAPE).append(currentChar);
-//                    continue;
-//                }
                 out.append(ESCAPE).append(currentChar);
                 continue;
             }

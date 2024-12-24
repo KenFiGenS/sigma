@@ -3,20 +3,18 @@ package tech.api_factory.sigma.parser;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -34,6 +32,13 @@ public class SigmaManager {
     private final Path rootPath = SigmaReader.SIGMA_DIR;
     private final ObjectMapper mapper = new ObjectMapper();
     private final SigmaReader reader = new SigmaReader();
+    private final String TWIN_BACK_SLASH = "\\\\";
+    private final String NOT_FOR_QUERY = "NOT";
+    private final String ONE_OF = "1 of ";
+    private final String ALL_OF = "all of ";
+    private final String NOT_FROM_CONDITION ="not";
+    private final Pattern BACK_SLASH = Pattern.compile("\\\\");
+    private static final Pattern BACK_SLASH_WITH_SYMBOLS = Pattern.compile("[^-|\\s|=]\\\\[^-|\\s|:|=|(|)|<|>|/|\\[|\\]|!|\\|]");
 
     public ObjectNode getFileStructure() throws IOException {
         ObjectNode rootNode = mapper.createObjectNode();
@@ -92,13 +97,13 @@ public class SigmaManager {
         int priority = Integer.parseInt(sigmaFields.get("level"));
         String query;
         try {
-            query = reader.getQueryString(path);
+            query = getQueryFormat(reader.getQueryString(path));
         } catch (Exception e) {
             System.out.println("Ошибка парсинга! \n " + e.getMessage() + "\n" + e + " Отправлен POST запрос");
             query = QueryHelper.getQueryFromPost(body);
         }
 //        System.out.println(description);
-        SigmaDto dto = new SigmaDto(name, body, getQueryFormat(query));
+        SigmaDto dto = new SigmaDto(name, body, query);
         System.out.println(dto.getQuery());
 //        queryValidate(List.of(dto.getQuery()));
         return dto;
@@ -125,30 +130,35 @@ public class SigmaManager {
         return allSigmaQuery;
     }
 
-    public String getQueryFormat(String value) throws IOException {
-        value = value.replaceAll("\\)" + "\\*",      ")");
-        value = value.replaceAll("1 of ", "");
-        value = value.replaceAll("all of ", "");
-        value = value.replace("not", "NOT");
-        value = value.replaceAll("\\\\", "\\\\\\\\");
-        value = value.replaceAll("=\\\\\\\\\\*", "=\\\\*");
-        value = value.replaceAll("\\\\ ", " ");
-        value = value.replaceAll("\\\\-", "-");
-        value = value.replaceAll("\\\\/", "/");
-        value = value.replaceAll("\\\\\\[", "[");
-        value = value.replaceAll("\\\\]", "]");
-        value = value.replaceAll("\\\\=", "=");
-        value = value.replaceAll("\\\\\\|", "|");
-        value = value.replaceAll("\\\\!", "!");
-        value = value.replaceAll("\\\\:", ":");
-        value = value.replaceAll("\\\\\\(", "(");
-        value = value.replaceAll("\\\\\\)", ")");
-        value = value.replaceAll("\\\\>", ">");
-        value = value.replaceAll("\\\\<", "<");
-        value = value.replaceAll("::", "\\\\:\\\\:");
-        value = value.replaceAll("\\\\\\\\\\\\\\\\", "\\\\");
-        value = value.replaceAll("\\\\\\)", "\\\\)*");
+    public String getQueryFormat(String value) {
+        System.out.println(value);
+        value = value.replaceAll(ONE_OF, "");
+        value = value.replaceAll(ALL_OF, "");
+        value = value.replace(NOT_FROM_CONDITION, NOT_FOR_QUERY);
+        value = backSlashHandler(value);
         return value;
+    }
+
+    public String backSlashHandler(String value) {
+        StringBuilder finalQueryBuilder = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            String currentSymbol = String.valueOf(value.charAt(i));
+            Matcher matcher = BACK_SLASH.matcher(currentSymbol);
+            if (matcher.find()) {
+                String nextSymbol = (i + 1 != value.length()) ? String.valueOf(value.charAt(i + 1)) : "";
+                String previousSymbol = (i - 1 >= 0) ? String.valueOf(value.charAt(i - 1)) : "";
+                String treeSymbols = String.join("", previousSymbol, currentSymbol, nextSymbol);
+                Matcher matcher2 = BACK_SLASH_WITH_SYMBOLS.matcher(treeSymbols);
+                if (matcher2.find()) {
+                    finalQueryBuilder.append(TWIN_BACK_SLASH);
+                } else {
+                    finalQueryBuilder.append(currentSymbol);
+                }
+            } else {
+                finalQueryBuilder.append(currentSymbol);
+            }
+        }
+        return finalQueryBuilder.toString();
     }
 
     public String queryValidate(List<String> allQuery) {

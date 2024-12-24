@@ -13,7 +13,7 @@ import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 @Service
 public class QueryBuilder {
@@ -35,8 +35,7 @@ public class QueryBuilder {
         try {
             sigmaRule = ruleParser.parseRule(yamlSource);
         } catch (RuntimeException e) {
-            System.out.println("Ошибка парсинга в Java-объект! \n " + e.getMessage() + "\n" + e + " Отправлен POST запрос");
-            return this.getOneQueryFromSigmaRuleWithSigConverter(yaml);
+           throw new IllegalArgumentException("Ошибка парсинга в Java-объект! \n " + e.getMessage() + "\n" + e + "\n" + " Отправлен POST запрос");
         }
 
         // Получаем строку condition непосредственно из String Yaml
@@ -63,48 +62,48 @@ public class QueryBuilder {
         }
         detectionNamesInConditionLine.forEach(s -> System.out.println(s));
         System.out.println(condition);
-        return getQueryFromSimpleSigmaRule(condition, detectionNamesInConditionLine, detectionsManager);
+        return getHardConditionLine(condition, detectionNamesInConditionLine, detectionsManager);
     }
 
-    public String getQueryFromSimpleSigmaRule(String result, List<String> detectionNamesInConditionLine, DetectionsManager detectionsManager) {
-        final String defaultResult = result;
-        Iterator<String> detectionNamesIterator = detectionNamesInConditionLine.iterator();
-        String valueResult = "";
-        String selectionValue = "";
-        while (detectionNamesIterator.hasNext()) {
-            String currentDetectionName = detectionNamesIterator.next();
-            List<SigmaDetection> detections;
-            try {
-                detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
-            } catch (NullPointerException e) {
-                System.out.println("=================================================================================>Go to the hardRuleParser");
-                result = defaultResult;
-                return getHardConditionLine(result, detectionNamesInConditionLine, detectionsManager);
-            }
-            StringBuilder keyValueByDetectionName = new StringBuilder();
-            for (SigmaDetection d : detections) {
-                valueResult = d.getValues().toString();
-                if (d.getMatchAll()) {
-                    valueResult = valueResult.replaceAll(", ", " AND " + d.getName() + ":");
-                } else {
-                    valueResult = valueResult.replaceAll(", ", " OR ");
-                }
-                if (isList(yaml, currentDetectionName)) {
-                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" OR ");
-                } else {
-                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" AND ");
-                }
-            }
-            valueResult = valueFormat(keyValueByDetectionName.toString());
-            if (currentDetectionName.equals("selection")) {
-                selectionValue = valueResult;
-                continue;
-            }
-            result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
-        }
-        if (result.contains("selection")) result = result.replaceAll("selection", "(" + selectionValue + ")");
-        return result;
-    }
+//    public String getQueryFromSimpleSigmaRule(String result, List<String> detectionNamesInConditionLine, DetectionsManager detectionsManager) {
+//        final String defaultResult = result;
+//        Iterator<String> detectionNamesIterator = detectionNamesInConditionLine.iterator();
+//        String valueResult;
+//        String selectionValue = "";
+//        while (detectionNamesIterator.hasNext()) {
+//            String currentDetectionName = detectionNamesIterator.next();
+//            List<SigmaDetection> detections;
+//            try {
+//                detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
+//            } catch (NullPointerException e) {
+//                System.out.println("=================================================================================>Go to the hardRuleParser");
+//                result = defaultResult;
+//                return getHardConditionLine(result, detectionNamesInConditionLine, detectionsManager);
+//            }
+//            StringBuilder keyValueByDetectionName = new StringBuilder();
+//            for (SigmaDetection d : detections) {
+//                valueResult = d.getValues().toString();
+//                if (d.getMatchAll()) {
+//                    valueResult = valueResult.replaceAll(", ", " AND " + d.getName() + ":");
+//                } else {
+//                    valueResult = valueResult.replaceAll(", ", " OR ");
+//                }
+//                if (isList(yaml, currentDetectionName)) {
+//                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" OR ");
+//                } else {
+//                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" AND ");
+//                }
+//            }
+//            valueResult = valueFormat(keyValueByDetectionName.toString());
+//            if (currentDetectionName.equals("selection")) {
+//                selectionValue = valueResult;
+//                continue;
+//            }
+//            result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
+//        }
+//        if (result.contains("selection")) result = result.replaceAll("selection", "(" + selectionValue + ")");
+//        return result;
+//    }
 
     public String getHardConditionLine(String result, List<String> conditionNames, DetectionsManager detectionsManager) {
         List<String> detectionName = detectionsManager.getAllDetections().keySet().stream().toList();
@@ -121,7 +120,7 @@ public class QueryBuilder {
                         if (!d.getMatchAll()) {
                             currentValue = currentValue.replaceAll(", ", " OR ");
                         } else {
-                            currentValue = currentValue.replaceAll(", ", " AND ");
+                            currentValue = currentValue.replaceAll(", ", " AND " + d.getName() + ":");
                         }
                         if (currentDetectionName.equals("selection")) {
                             keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
@@ -131,7 +130,6 @@ public class QueryBuilder {
                             } else {
                                 keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                             }
-//                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         } else {
                             keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
                         }
@@ -153,7 +151,7 @@ public class QueryBuilder {
         }
         for (String k : keyValue.keySet()) {
             String value = keyValue.get(k);
-            result = result.replaceAll(k, "(" + value + ")");
+            result = result.replaceAll(Pattern.quote(k), "(" + value + ")");
         }
         return result;
     }
@@ -266,9 +264,11 @@ public class QueryBuilder {
             while (iterator.hasNext()) {
                 String line = iterator.next();
                 if (line.contains(detectionName)) {
-                    iterator.next();
-                    String nextLine = iterator.next().trim();
-                    if (nextLine.startsWith("- ")) return true;
+                    if (iterator.hasNext()) iterator.next();
+                    if (iterator.hasNext()) {
+                        String nextLine = iterator.next().trim();
+                        if (nextLine.startsWith("- ")) return true;
+                    }
                 }
             }
         } catch (IOException e) {
