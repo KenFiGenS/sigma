@@ -13,16 +13,19 @@ import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class QueryBuilder {
-    public static final String ONE_OF_SELECTION_1 = "1 of selection_*";
-    public static final String ONE_OF_SELECTION_2 = "1 of selection*";
-    public static final String ONE_OF_SELECTION1 = "1 of selection1*";
-    public static final String ALL_OF_SELECTION_1 = "all of selection_*";
-    public static final String ALL_OF_SELECTION_2 = "all of selection*";
-    public static final String ALL_OF_SELECTION1 = "all of selection1*";
+    static final Pattern PATTERN_FOR_CONDITION_LINE = Pattern.compile("_\\*|\\*");
+    static final String SPACE = " ";
+    static final String TEMP_STRING = "";
+    static final String CONDITION_ALL = "all";
+    static final String CONDITION_ONE = "1";
+    static final String OPERATOR_AND = " AND ";
+    static final String OPERATOR_OR = " OR ";
     public static String yaml = "";
 
     public static SigmaRuleParser ruleParser;
@@ -37,128 +40,181 @@ public class QueryBuilder {
         } catch (RuntimeException e) {
            throw new IllegalArgumentException("Ошибка парсинга в Java-объект! \n " + e.getMessage() + "\n" + e + "\n" + " Отправлен POST запрос");
         }
-
+        System.out.println("===============================================================================");
         // Получаем строку condition непосредственно из String Yaml
         String condition = getConditionLineFromYaml(yamlSource);
-
-        // Получаем все Conditions и Detections из объекта SigmaRule
-        List<SigmaCondition> sigmaConditions = sigmaRule.getConditionsManager().getConditions();
-        DetectionsManager detectionsManager = sigmaRule.getDetectionsManager();
-
-        // Вычленяем имена Detection из поля Condition в объекте SigmaRule
-        List<String> detectionNamesInConditionLine = new ArrayList<>();
-        for (SigmaCondition sigmaCondition : sigmaConditions) {
-            recursiveInspectConditionNames(sigmaCondition, detectionNamesInConditionLine);
-        }
-
-//        System.out.println(condition);
-
-        if (condition.equals(ONE_OF_SELECTION_1) || condition.equals(ALL_OF_SELECTION_1) ||
-                condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2) ||
-                condition.contains(ONE_OF_SELECTION1) || condition.contains(ALL_OF_SELECTION1)) {
-            System.out.println(condition);
-            detectionNamesInConditionLine = List.copyOf(detectionsManager.getAllDetections().keySet());
-            condition = getConditionLine(condition, detectionNamesInConditionLine);
-        }
-        detectionNamesInConditionLine.forEach(s -> System.out.println(s));
         System.out.println(condition);
-        return getHardConditionLine(condition, detectionNamesInConditionLine, detectionsManager);
+        return getConditionResult(sigmaRule, condition);
+//        System.out.println("===============================================================================");
+//        // Получаем все Conditions и Detections из объекта SigmaRule
+//        List<SigmaCondition> sigmaConditions = sigmaRule.getConditionsManager().getConditions();
+//        DetectionsManager detectionsManager = sigmaRule.getDetectionsManager();
+//
+//        // Вычленяем имена Detection из поля Condition в объекте SigmaRule
+//        List<String> detectionNamesInConditionLine = new ArrayList<>();
+//        for (SigmaCondition sigmaCondition : sigmaConditions) {
+//            recursiveInspectConditionNames(sigmaCondition, detectionNamesInConditionLine);
+//        }
+//
+////        System.out.println(condition);
+//
+//        if (condition.equals(ONE_OF_SELECTION_1) || condition.equals(ALL_OF_SELECTION_1) ||
+//                condition.equals(ONE_OF_SELECTION_2) || condition.equals(ALL_OF_SELECTION_2) ||
+//                condition.contains(ONE_OF_SELECTION1) || condition.contains(ALL_OF_SELECTION1)) {
+////            System.out.println(condition);
+//            detectionNamesInConditionLine = List.copyOf(detectionsManager.getAllDetections().keySet());
+//            condition = getConditionLine(condition, detectionNamesInConditionLine);
+//        }
+////        detectionNamesInConditionLine.forEach(s -> System.out.println(s));
+////        System.out.println(condition);
+//        return getHardConditionLine(condition, detectionNamesInConditionLine, detectionsManager);
     }
 
-//    public String getQueryFromSimpleSigmaRule(String result, List<String> detectionNamesInConditionLine, DetectionsManager detectionsManager) {
-//        final String defaultResult = result;
-//        Iterator<String> detectionNamesIterator = detectionNamesInConditionLine.iterator();
-//        String valueResult;
-//        String selectionValue = "";
-//        while (detectionNamesIterator.hasNext()) {
-//            String currentDetectionName = detectionNamesIterator.next();
-//            List<SigmaDetection> detections;
-//            try {
-//                detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
-//            } catch (NullPointerException e) {
-//                System.out.println("=================================================================================>Go to the hardRuleParser");
-//                result = defaultResult;
-//                return getHardConditionLine(result, detectionNamesInConditionLine, detectionsManager);
-//            }
-//            StringBuilder keyValueByDetectionName = new StringBuilder();
-//            for (SigmaDetection d : detections) {
-//                valueResult = d.getValues().toString();
-//                if (d.getMatchAll()) {
-//                    valueResult = valueResult.replaceAll(", ", " AND " + d.getName() + ":");
-//                } else {
-//                    valueResult = valueResult.replaceAll(", ", " OR ");
-//                }
-//                if (isList(yaml, currentDetectionName)) {
-//                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" OR ");
-//                } else {
-//                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(" AND ");
-//                }
-//            }
-//            valueResult = valueFormat(keyValueByDetectionName.toString());
-//            if (currentDetectionName.equals("selection")) {
-//                selectionValue = valueResult;
-//                continue;
-//            }
-//            result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
-//        }
-//        if (result.contains("selection")) result = result.replaceAll("selection", "(" + selectionValue + ")");
-//        return result;
-//    }
-
-    public String getHardConditionLine(String result, List<String> conditionNames, DetectionsManager detectionsManager) {
-        List<String> detectionName = detectionsManager.getAllDetections().keySet().stream().toList();
-        Map<String, String> keyValue = new HashMap<>();
-        boolean isAndConditions;
-        for (String currentDetectionName : detectionName) {
-            for (String conditionName : conditionNames) {
-                isAndConditions = conditionName.equals("all");
-                if (currentDetectionName.contains(conditionName.replace("_*", "")) && !conditionName.equals("of") && !conditionName.equals("1")) {
-                    StringBuilder keyValueByDetectionName = new StringBuilder();
-                    List<SigmaDetection> detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
-                    for (SigmaDetection d : detections) {
-                        String currentValue = d.getValues().toString();
-                        if (!d.getMatchAll()) {
-                            currentValue = currentValue.replaceAll(", ", " OR ");
-                        } else {
-                            currentValue = currentValue.replaceAll(", ", " AND " + d.getName() + ":");
-                        }
-                        if (currentDetectionName.equals("selection")) {
-                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
-                        } else if (isListForHardRules(yaml, currentDetectionName)) {
-                            if (isList(yaml, currentDetectionName)) {
-                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" OR ");
-                            } else {
-                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
-                            }
-                        } else {
-                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
-                        }
-                    }
-                    keyValueByDetectionName = new StringBuilder(valueFormat(keyValueByDetectionName.toString()));
-                    if (!keyValue.containsKey(conditionName)) {
-                        keyValue.put(conditionName, keyValueByDetectionName.toString());
-                    } else if (currentDetectionName.contains("selection") || isAndConditions) {
-                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
-                        builder.append(" AND ").append(keyValueByDetectionName);
-                        keyValue.put(conditionName, builder.toString());
+    public String getConditionResult(SigmaRule sigmaRule, String conditionLine) {
+        StringBuilder conditionResult = new StringBuilder();
+        List<String> conditions = Arrays.asList(conditionLine.split(SPACE));
+        List<String> detectionNamesInConditionLine = List.copyOf(sigmaRule.getDetectionsManager().getAllDetections().keySet());
+        boolean isAll = false;
+        for (int i = 0; i < conditions.size(); i++) {
+            String currenConditionLineElement = conditions.get(i);
+            switch (currenConditionLineElement) {
+                case CONDITION_ONE:
+                    isAll = false;
+                    conditionResult.append(currenConditionLineElement).append(SPACE);
+                    break;
+                case CONDITION_ALL:
+                    isAll = true;
+                    conditionResult.append(currenConditionLineElement).append(SPACE);
+                    break;
+                default:
+                    Matcher matcher = PATTERN_FOR_CONDITION_LINE.matcher(currenConditionLineElement);
+                    if (matcher.find()) {
+                        currenConditionLineElement = currenConditionLineElement.replace(matcher.group(), TEMP_STRING);
+                        conditionResult.append(getAggregationDetectionNamesByConditionName(currenConditionLineElement, detectionNamesInConditionLine, isAll).append(SPACE));
                     } else {
-                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
-                        builder.append(" OR ").append(keyValueByDetectionName);
-                        keyValue.put(conditionName, builder.toString());
+                        conditionResult.append(currenConditionLineElement).append(SPACE);
                     }
+            }
+        }
+        System.out.println(conditionResult.toString().trim());
+        String aggregatedDetectionName = conditionResult.toString().trim();
+        return getQueryFromSigmaRule(aggregatedDetectionName, sigmaRule);
+    }
+
+    public StringBuilder getAggregationDetectionNamesByConditionName(String currenConditionLineElement, List<String> detectionNamesInConditionLine, boolean isAll) {
+        StringBuilder builder = new StringBuilder();
+        List<String> detectionNamesByConditionName = detectionNamesInConditionLine.stream()
+                .filter(s -> s.contains(currenConditionLineElement))
+                .toList();
+        for (int i = 0; i < detectionNamesByConditionName.size(); i++) {
+            String currentName = detectionNamesByConditionName.get(i);
+            if (isAll) {
+                if (i + 1 != detectionNamesByConditionName.size()) {
+                    builder.append(currentName).append(OPERATOR_AND);
+                } else {
+                    builder.append(currentName);
+                }
+            } else {
+                if (i + 1 != detectionNamesByConditionName.size()) {
+                    builder.append(currentName).append(OPERATOR_OR);
+                } else {
+                    builder.append(currentName);
                 }
             }
         }
-        for (String k : keyValue.keySet()) {
-            String value = keyValue.get(k);
-            result = result.replaceAll(Pattern.quote(k), "(" + value + ")");
+        return builder;
+    }
+
+    public String getQueryFromSigmaRule(String aggregatedDetectionName, SigmaRule sigmaRule) {
+        DetectionsManager detectionsManager = sigmaRule.getDetectionsManager();
+
+        List<String> allDetectionName = Arrays.stream(aggregatedDetectionName.split(SPACE)).toList().stream()
+                .filter(s -> s.length() > 3).toList();
+
+        return getQueryFromSimpleSigmaRule(aggregatedDetectionName, allDetectionName, detectionsManager);
+    }
+
+    public String getQueryFromSimpleSigmaRule(String result, List<String> detectionNamesInConditionLine, DetectionsManager detectionsManager) {
+        Iterator<String> detectionNamesIterator = detectionNamesInConditionLine.iterator();
+        String valueResult;
+        while (detectionNamesIterator.hasNext()) {
+            String currentDetectionName = detectionNamesIterator.next();
+            List<SigmaDetection> detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
+            StringBuilder keyValueByDetectionName = new StringBuilder();
+            for (SigmaDetection d : detections) {
+                valueResult = d.getValues().toString();
+                if (d.getMatchAll()) {
+                    valueResult = valueResult.replaceAll(", ", OPERATOR_AND + d.getName() + ":");
+                } else {
+                    valueResult = valueResult.replaceAll(", ", OPERATOR_OR);
+                }
+                if (isList(yaml, currentDetectionName)) {
+                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(OPERATOR_OR);
+                } else {
+                    keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(OPERATOR_AND);
+                }
+            }
+            valueResult = valueFormat(keyValueByDetectionName.toString());
+            result = result.replaceAll(currentDetectionName, "(" + valueResult + ")");
         }
         return result;
     }
 
+//    public String getHardConditionLine(String result, List<String> conditionNames, DetectionsManager detectionsManager) {
+//        List<String> detectionName = detectionsManager.getAllDetections().keySet().stream().toList();
+//        Map<String, String> keyValue = new HashMap<>();
+//        boolean isAndConditions;
+//        for (String currentDetectionName : detectionName) {
+//            for (String conditionName : conditionNames) {
+//                isAndConditions = conditionName.equals("all");
+//                if (currentDetectionName.contains(conditionName.replace("_*", "")) && !conditionName.equals("of") && !conditionName.equals("1")) {
+//                    StringBuilder keyValueByDetectionName = new StringBuilder();
+//                    List<SigmaDetection> detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
+//                    for (SigmaDetection d : detections) {
+//                        String currentValue = d.getValues().toString();
+//                        if (!d.getMatchAll()) {
+//                            currentValue = currentValue.replaceAll(", ", " OR ");
+//                        } else {
+//                            currentValue = currentValue.replaceAll(", ", " AND " + d.getName() + ":");
+//                        }
+//                        if (currentDetectionName.equals("selection")) {
+//                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
+//                        } else if (isListForHardRules(yaml, currentDetectionName)) {
+//                            if (isList(yaml, currentDetectionName)) {
+//                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" OR ");
+//                            } else {
+//                                keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
+//                            }
+//                        } else {
+//                            keyValueByDetectionName.append(d.getName()).append(":").append(currentValue).append(" AND ");
+//                        }
+//                    }
+//                    keyValueByDetectionName = new StringBuilder(valueFormat(keyValueByDetectionName.toString()));
+//                    if (!keyValue.containsKey(conditionName)) {
+//                        keyValue.put(conditionName, keyValueByDetectionName.toString());
+//                    } else if (currentDetectionName.contains("selection") || isAndConditions) {
+//                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
+//                        builder.append(" AND ").append(keyValueByDetectionName);
+//                        keyValue.put(conditionName, builder.toString());
+//                    } else {
+//                        StringBuilder builder = new StringBuilder(keyValue.get(conditionName));
+//                        builder.append(" OR ").append(keyValueByDetectionName);
+//                        keyValue.put(conditionName, builder.toString());
+//                    }
+//                }
+//            }
+//        }
+//        for (String k : keyValue.keySet()) {
+//            String value = keyValue.get(k);
+//            result = result.replaceAll(Pattern.quote(k), "(" + value + ")");
+//        }
+//        return result;
+//    }
+
     public String valueFormat(String value) {
+        System.out.println(value);
         StringBuilder queryBuilder = new StringBuilder();
-        String[] splitValues = value.split(" ");
+        String[] splitValues = value.split(SPACE);
         for (int i = 0; i < splitValues.length; i++) {
             String currentSplitValue = splitValues[i];
             StringBuilder currentValueBuilder = new StringBuilder(currentSplitValue);
@@ -178,25 +234,25 @@ public class QueryBuilder {
         return value;
     }
 
-    public String getConditionLine(String condition, List<String> detectionsNames) {
-        StringBuilder conditionResult = new StringBuilder();
-        for (int i = 0; i < detectionsNames.size(); i++) {
-            if (i + 1 < detectionsNames.size()) {
-                if (condition.contains("all")) {
-                    conditionResult
-                            .append(detectionsNames.get(i))
-                            .append(" AND ");
-                } else if (condition.contains("1")){
-                    conditionResult
-                            .append(detectionsNames.get(i))
-                            .append(" OR ");
-                }
-            } else {
-                conditionResult.append(detectionsNames.get(i));
-            }
-        }
-        return conditionResult.toString();
-    }
+//    public String getConditionLine(String condition, List<String> detectionsNames) {
+//        StringBuilder conditionResult = new StringBuilder();
+//        for (int i = 0; i < detectionsNames.size(); i++) {
+//            if (i + 1 < detectionsNames.size()) {
+//                if (condition.contains("all")) {
+//                    conditionResult
+//                            .append(detectionsNames.get(i))
+//                            .append(" AND ");
+//                } else if (condition.contains("1")){
+//                    conditionResult
+//                            .append(detectionsNames.get(i))
+//                            .append(" OR ");
+//                }
+//            } else {
+//                conditionResult.append(detectionsNames.get(i));
+//            }
+//        }
+//        return conditionResult.toString();
+//    }
 
     public String getConditionLineFromYaml(String yaml) {
         String condition = "";
@@ -214,15 +270,6 @@ public class QueryBuilder {
         return condition;
     }
 
-    public List<String> recursiveInspectConditionNames(SigmaCondition condition, List<String> conditionNames){
-        conditionNames.add(condition.getConditionName());
-        if(condition.getPairedCondition() != null){
-            return recursiveInspectConditionNames(condition.getPairedCondition(), conditionNames);
-        } else {
-            return conditionNames;
-        }
-    }
-
     public String getSigmaRuleFromFile(String file) throws IOException, InvalidSigmaRuleException, SigmaRuleParserException {
         StringBuilder newYaml = new StringBuilder();
         try (BufferedReader br = (new BufferedReader(new InputStreamReader(new FileInputStream(file), Charset.defaultCharset())))) {
@@ -234,11 +281,6 @@ public class QueryBuilder {
         } catch (IOException e) {
         }
         return newYaml.toString();
-    }
-
-    public String getOneQueryFromSigmaRuleWithSigConverter(String yaml) throws IOException, InterruptedException, URISyntaxException {
-        String response = QueryHelper.getQueryFromPost(yaml);
-        return response;
     }
 
     private boolean isList(String yaml, String detectionName) {
@@ -257,23 +299,23 @@ public class QueryBuilder {
         return false;
     }
 
-    private boolean isListForHardRules(String yaml, String detectionName) {
-
-        try (BufferedReader br = (new BufferedReader(new StringReader(yaml)))) {
-            Iterator<String> iterator = br.lines().iterator();
-            while (iterator.hasNext()) {
-                String line = iterator.next();
-                if (line.contains(detectionName)) {
-                    if (iterator.hasNext()) iterator.next();
-                    if (iterator.hasNext()) {
-                        String nextLine = iterator.next().trim();
-                        if (nextLine.startsWith("- ")) return true;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-        return false;
-    }
+//    private boolean isListForHardRules(String yaml, String detectionName) {
+//
+//        try (BufferedReader br = (new BufferedReader(new StringReader(yaml)))) {
+//            Iterator<String> iterator = br.lines().iterator();
+//            while (iterator.hasNext()) {
+//                String line = iterator.next();
+//                if (line.contains(detectionName)) {
+//                    if (iterator.hasNext()) iterator.next();
+//                    if (iterator.hasNext()) {
+//                        String nextLine = iterator.next().trim();
+//                        if (nextLine.startsWith("- ")) return true;
+//                    }
+//                }
+//            }
+//        } catch (IOException e) {
+//            System.out.println(e.getMessage());
+//        }
+//        return false;
+//    }
 }
