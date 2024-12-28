@@ -131,7 +131,7 @@ public class SigmaManager {
     }
 
     public String getQueryFormat(String value) {
-        System.out.println(value);
+//        System.out.println(value);
         value = value.replaceAll(ONE_OF, "");
         value = value.replaceAll(ALL_OF, "");
         value = value.replace(NOT_FROM_CONDITION, NOT_FOR_QUERY);
