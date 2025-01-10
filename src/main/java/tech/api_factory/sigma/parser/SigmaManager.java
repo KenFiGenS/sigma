@@ -33,12 +33,12 @@ public class SigmaManager {
     private final ObjectMapper mapper = new ObjectMapper();
     private final SigmaReader reader = new SigmaReader();
     private final String TWIN_BACK_SLASH = "\\\\";
-    private final String NOT_FOR_QUERY = "NOT";
+    private final String NOT_FOR_QUERY = " NOT ";
     private final String ONE_OF = "1 of ";
     private final String ALL_OF = "all of ";
-    private final String NOT_FROM_CONDITION ="not";
+    private final String NOT_FROM_CONDITION ="\snot\s";
     private final Pattern BACK_SLASH = Pattern.compile("\\\\");
-    private static final Pattern BACK_SLASH_WITH_SYMBOLS = Pattern.compile("[^-|\\s|=]\\\\[^-|\\s|:|=|(|)|<|>|/|\\[|\\]|!|\\|]");
+    private static final Pattern BACK_SLASH_WITH_SYMBOLS = Pattern.compile("[^-|\\s|=]\\\\[^-|\\s|:|=|(|)|<|>|/|\\[|\\]|!|\\||\"|\\{|\\}|+|&]");
 
     public ObjectNode getFileStructure() throws IOException {
         ObjectNode rootNode = mapper.createObjectNode();
@@ -159,46 +159,5 @@ public class SigmaManager {
             }
         }
         return finalQueryBuilder.toString();
-    }
-
-    public String queryValidate(List<String> allQuery) {
-        String uriString = "http://10.200.0.182:9000/api/search/validate";
-        String jsonBody = "{\"query\": \"%s\"}";
-
-        String value = allQuery.get(0);
-
-
-        String finalizedJsonBody = String.format(jsonBody, value);
-
-        System.out.println(finalizedJsonBody);
-        HttpClient httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .connectTimeout(java.time.Duration.ofSeconds(2)) // время ожидания соединения
-                .build();
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(uriString))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Basic YWRtaW46bnE4VWxpQW5yTExtN0ZOVlpwMjhINldnVUxweFY0RXlieG1UZmQ5T0tRZXQxNXZsSW1GMUlaR2w5Y25tbDc0MU5RZnJsY3BaSUdGWmxXclByaFJTMlB3MVlPZEFZS3dQ")
-                    .header("X-Requested-By", "Java TestScript")
-                    .POST(HttpRequest.BodyPublishers.ofString(finalizedJsonBody))
-                    .build();
-
-            try{
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                System.out.println(response);
-                System.out.println(response.statusCode() +" : " + response.body());
-            }
-            catch (IOException e) {
-                return "IOException has been thrown while requesting secondary sigma parsing resource";
-            }
-            catch (InterruptedException e) {
-                return "InterruptedException has been thrown while requesting secondary sigma parsing resource";
-            }
-        }
-        catch (URISyntaxException e){
-            return "Impossible error (or sigmaconvert endpoint has been changed...)";
-        }
-        return uriString;
     }
 }

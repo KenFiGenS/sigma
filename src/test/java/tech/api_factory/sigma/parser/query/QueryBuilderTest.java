@@ -6,14 +6,11 @@ import org.springframework.util.Assert;
 import tech.api_factory.sigma.parser.SigmaManager;
 import tech.api_factory.sigma.parser.SigmaReader;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 class QueryBuilderTest {
     private SigmaReader reader;
@@ -50,9 +47,10 @@ class QueryBuilderTest {
     }
 
     @Test
-    public void queryTest() {
+    public void queryTest() throws InterruptedException {
+        Map<String, String> rulesWithError = new HashMap<>();
         List<String> paths = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader("rulesList.txt"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader("allRulesPaths.txt"))) { // allRulesPaths or rulesList
             Iterator iterator = br.lines().iterator();
             while (iterator.hasNext()) {
                 String line = iterator.next().toString();
@@ -62,7 +60,9 @@ class QueryBuilderTest {
             e.printStackTrace();
         }
 
+        int counter = 0;
         for (String path : paths) {
+            counter++;
             andCountFromParser = 0;
             orCountFromParser = 0;
             notCountFromParser = 0;
@@ -71,11 +71,19 @@ class QueryBuilderTest {
             orCountFromConverter = 0;
             notCountFromConverter = 0;
             backSlashCountFromConverter = 0;
-//            System.out.println(path);
+            System.out.println(path);
+            String queryFromParser = "";
+            String queryFromSigConverter = "";
+//            try {
+                queryFromParser = manager.getQueryFormat(reader.getQueryString(path));
+                queryFromSigConverter = QueryHelper.getQueryFromPost(reader.readFile(path));
+//            } catch (RuntimeException e) {
+//                rulesWithError.put(path, e.getMessage());
+//                continue;
+//            }
 
-            String queryFromParser = manager.getQueryFormat(reader.getQueryString(path));
-            String queryFromSigConverter = QueryHelper.getQueryFromPost(reader.readFile(path));
-//            System.out.println(queryFromSigConverter);
+
+
 
             Matcher matcher = PATTERN_FOR_AND.matcher(queryFromParser);
             while (matcher.find()) {
@@ -111,15 +119,33 @@ class QueryBuilderTest {
                 backSlashCountFromConverter++;
             }
 
-//            System.out.println(queryFromParser + " - " + queryFromSigConverter);
-//            System.out.println(andCountFromParser + " - " + andCountFromConverter);
-//            System.out.println(orCountFromParser + " - " + orCountFromConverter);
-//            System.out.println(notCountFromParser + " - " + notCountFromConverter);
-//            System.out.println(backSlashCountFromParser + " - " + backSlashCountFromConverter);
+
+//            if (andCountFromParser != andCountFromConverter) {
+//                rulesWithError.put(path, "AND");
+//                continue;
+//            }
+//            if (orCountFromParser != orCountFromConverter) {
+//                rulesWithError.put(path, "OR");
+//                continue;
+//            }
+//            if (notCountFromParser != notCountFromConverter) {
+//                rulesWithError.put(path, "NOT");
+//                continue;
+//            }
+//            if (backSlashCountFromParser != backSlashCountFromConverter) {
+//                rulesWithError.put(path, "backSlash");
+//                continue;
+//            }
+
+
             Assert.isTrue(andCountFromParser == andCountFromConverter, "ERROR in rules with path: " + path);
             Assert.isTrue(orCountFromParser == orCountFromConverter, "ERROR in rules with path: " + path);
             Assert.isTrue(notCountFromParser == notCountFromConverter, "ERROR in rules with path: " + path);
             Assert.isTrue(backSlashCountFromParser == backSlashCountFromConverter, "ERROR in rules with path: " + path);
+            System.out.println(counter);
+            Thread.sleep(500);
         }
+//        rulesWithError.entrySet().stream().forEach(stringStringEntry -> System.out.println(stringStringEntry.getKey() + ": " + stringStringEntry.getValue()));
+//        System.out.println(rulesWithError.size());
     }
 }

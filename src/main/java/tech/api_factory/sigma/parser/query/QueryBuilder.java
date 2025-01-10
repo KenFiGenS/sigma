@@ -46,7 +46,7 @@ public class QueryBuilder {
 
         // Получаем строку condition непосредственно из String Yaml
         String condition = getConditionLineFromYaml(yamlSource);
-        System.out.println(condition);
+//        System.out.println(condition);
         return getConditionResult(sigmaRule, condition);
     }
 
@@ -76,7 +76,7 @@ public class QueryBuilder {
                     }
             }
         }
-        System.out.println(conditionResult.toString().trim());
+//        System.out.println(conditionResult.toString().trim());
         String aggregatedDetectionName = conditionResult.toString().trim();
         return getQueryFromSigmaRule(aggregatedDetectionName, sigmaRule);
     }
@@ -109,7 +109,7 @@ public class QueryBuilder {
         DetectionsManager detectionsManager = sigmaRule.getDetectionsManager();
 
         List<String> allDetectionName = Arrays.stream(aggregatedDetectionName.split(SPACE)).toList().stream()
-                .filter(s -> s.length() > 3)
+                .filter(s -> (s.length() > 3) || (s.equals("cmd")))
                 .map(s -> {
                     Matcher matcher = PATTERN_FOR_CONDITION_LINE2.matcher(s);
                     if (matcher.find()) {
@@ -126,7 +126,7 @@ public class QueryBuilder {
         String valueResult;
         while (detectionNamesIterator.hasNext()) {
             String currentDetectionName = detectionNamesIterator.next();
-            System.out.println(currentDetectionName);
+//            System.out.println(currentDetectionName);
             List<SigmaDetection> detections = detectionsManager.getDetectionsByName(currentDetectionName).getDetections();
             StringBuilder keyValueByDetectionName = new StringBuilder();
             for (SigmaDetection d : detections) {
@@ -136,10 +136,15 @@ public class QueryBuilder {
                 } else {
                     valueResult = valueResult.replaceAll(", ", OPERATOR_OR);
                 }
+                if (currentDetectionName.equals("keywords")) {
+                    keyValueByDetectionName.append(d.getName()).append(OPERATOR_OR);
+                    continue;
+                }
                 if (isList(yaml, currentDetectionName)) {
                     keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(OPERATOR_OR);
                 } else {
                     keyValueByDetectionName.append(d.getName()).append(":").append(valueResult).append(OPERATOR_AND);
+
                 }
             }
             valueResult = valueFormat(keyValueByDetectionName.toString());

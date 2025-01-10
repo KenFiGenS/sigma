@@ -54,7 +54,7 @@ public class DetectionParser {
                 for (String s : names) {
                     StringBuilder buildKeyWord = new StringBuilder();
                     SigmaDetection sigmaDetection = new SigmaDetection();
-                    sigmaDetection.setName(buildKeyWord.append("*").append(s).append("*").toString());
+                    sigmaDetection.setName(buildKeyWord.append("*").append(sigmaWildcardToRegex(s)).append("*").toString());
                     sigmaDetectionList.add(sigmaDetection);
                 }
                SigmaDetections sigmaDetections = new SigmaDetections();
